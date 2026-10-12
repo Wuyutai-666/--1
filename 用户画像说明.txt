@@ -1,0 +1,331 @@
+下面是用户画像的查看、手动修改和格式化说明。项目内也有一份完整教程：[PROFILE_GUIDE.md](D:/my_agent/PROFILE_GUIDE.md)。
+
+**一、查看画像**
+
+终端查看：
+
+```powershell
+cd D:\my_agent
+.\venv\Scripts\python.exe .\profile_cli.py show
+```
+
+查看更多特征：
+
+```powershell
+.\venv\Scripts\python.exe .\profile_cli.py show --limit 50
+```
+
+查看最近行为：
+
+```powershell
+.\venv\Scripts\python.exe .\profile_cli.py events --limit 100
+```
+
+浏览器查看：
+
+[http://127.0.0.1:18080/profile](http://127.0.0.1:18080/profile)
+
+画像分两部分：
+
+```text
+explicit_preferences  明确偏好
+categories            行为推断的菜系偏好
+dishes                行为推断的菜品偏好
+restaurants           行为推断的商家偏好
+metrics               辣度、价格、配送费、距离偏好
+```
+
+**二、明确偏好的标准格式**
+
+明确偏好保存在 `user_preferences`，推荐时优先级最高。
+
+支持字段：
+
+| 字段 | 类型 | 示例 |
+|---|---|---|
+| `preferred_categories` | 数组 | `["川菜", "粤菜"]` |
+| `avoided_categories` | 数组 | `["西餐"]` |
+| `preferred_foods` | 数组 | `["水煮牛肉"]` |
+| `avoided_foods` | 数组 | `["猪脚饭"]` |
+| `budget_max` | 数字 | `30` |
+| `spicy_max` | `0-5` | `0` 表示不辣 |
+| `min_rating` | 数字 | `4.5` |
+| `delivery_fee_max` | 数字 | `5` |
+| `notes` | 字符串 | `"午餐预算30元"` |
+
+完整格式：
+
+```json
+{
+  "preferred_categories": ["川菜", "粤菜"],
+  "avoided_categories": ["西餐"],
+  "preferred_foods": ["水煮牛肉", "炸酱面"],
+  "avoided_foods": ["猪脚饭"],
+  "budget_max": 30,
+  "spicy_max": 0,
+  "min_rating": 4.5,
+  "delivery_fee_max": 5,
+  "notes": "工作日午餐尽量控制在30元以内"
+}
+```
+
+**三、通过 Python 手动修改明确偏好**
+
+推荐使用 `TakeoutStorage.set_preference()`，它会自动完成 JSON 格式化并同步到画像特征。
+
+```python
+from storage import TakeoutStorage
+
+storage = TakeoutStorage()
+user_id = "default"
+
+storage.set_preference(
+    user_id,
+    "preferred_categories",
+    ["川菜", "粤菜"],
+)
+
+storage.set_preference(
+    user_id,
+    "avoided_foods",
+    ["猪脚饭", "香菜"],
+)
+
+storage.set_preference(
+    user_id,
+    "budget_max",
+    30,
+)
+
+storage.set_preference(
+    user_id,
+    "spicy_max",
+    0,
+)
+
+storage.set_preference(
+    user_id,
+    "min_rating",
+    4.5,
+)
+
+storage.set_preference(
+    user_id,
+    "delivery_fee_max",
+    5,
+)
+```
+
+删除一个明确偏好：
+
+```python
+storage.delete_preference("default", "avoided_foods")
+```
+
+执行后重启正在运行的 `nl2sql.py`，确保系统提示词重新加载画像。
+
+**四、通过对话修改**
+
+启动：
+
+```powershell
+.\venv\Scripts\python.exe .\nl2sql.py
+```
+
+直接输入：
+
+```text
+我以后不吃猪脚饭
+我喜欢川菜和粤菜
+我喜欢水煮牛肉
+不要香菜
+预算不要超过30元
+配送费不要超过5元
+我现在可以吃辣了
+```
+
+这些表达会自动保存到明确偏好。
+
+**五、通过网页产生行为画像**
+
+打开：
+
+[http://127.0.0.1:18080/stores](http://127.0.0.1:18080/stores)
+
+每道菜支持：
+
+```text
+点击
+详情
+收藏
+加购
+忽略
+不感兴趣
+下单
+评分
+搜索
+```
+
+行为权重：
+
+```text
+点击       +1
+查看详情   +3
+收藏       +4
+加购       +6
+下单       +15
+忽略        0
+不感兴趣   -10
+评分       (score-3) × 4
+```
+
+评分格式：
+
+```text
+5分 -> +8
+4分 -> +4
+3分 -> 0
+2分 -> -4
+1分 -> -8
+```
+
+**六、行为画像的格式化结构**
+
+行为标签格式：
+
+```text
+category:川菜
+dish:d016
+restaurant:r006
+```
+
+对应 `feature_value`：
+
+```json
+{
+  "label": "川菜",
+  "raw_weight": 19.63,
+  "event_count": 8,
+  "normalized_weight": 0.72,
+  "direction": "positive",
+  "behaviors": {
+    "click": {
+      "count": 3,
+      "raw_weight": 1.81
+    },
+    "order": {
+      "count": 1,
+      "raw_weight": 7.5
+    }
+  }
+}
+```
+
+数值特点格式：
+
+```text
+spicy_preference
+price_preference
+delivery_fee_preference
+distance_preference
+```
+
+例如：
+
+```json
+{
+  "spicy_preference": {
+    "value": 1.5,
+    "score": 0.3,
+    "confidence": 0.6
+  }
+}
+```
+
+**七、手动覆盖行为画像**
+
+不要手工修改 `source='behavior'` 的特征，因为下一次画像重建会覆盖它。
+
+需要永久覆盖时，使用：
+
+```text
+source = 'manual'
+```
+
+示例：
+
+```python
+import json
+import sqlite3
+
+payload = {
+    "label": "川菜",
+    "raw_weight": 40.0,
+    "event_count": 0,
+    "normalized_weight": 1.0,
+    "direction": "positive",
+    "behaviors": {},
+}
+
+conn = sqlite3.connect("data/agent.db")
+conn.execute(
+    """
+    INSERT INTO user_profile_features (
+        user_id, feature_key, feature_value, score,
+        confidence, source, update_count,
+        first_seen_at, last_seen_at
+    ) VALUES (?, ?, ?, ?, 1.0, 'manual', 0,
+              CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id, feature_key) DO UPDATE SET
+        feature_value = excluded.feature_value,
+        score = excluded.score,
+        confidence = 1.0,
+        source = 'manual',
+        last_seen_at = CURRENT_TIMESTAMP
+    """,
+    (
+        "default",
+        "category:川菜",
+        json.dumps(payload, ensure_ascii=False),
+        40.0,
+    ),
+)
+conn.commit()
+conn.close()
+```
+
+负向覆盖：
+
+```json
+{
+  "label": "猪脚饭",
+  "raw_weight": -40.0,
+  "normalized_weight": 0.0,
+  "direction": "negative",
+  "event_count": 0,
+  "behaviors": {}
+}
+```
+
+**八、重置画像**
+
+只清除行为画像、行为和推荐曝光，保留明确偏好：
+
+```powershell
+.\venv\Scripts\python.exe .\profile_cli.py reset --yes
+```
+
+同时清除明确偏好：
+
+```powershell
+.\venv\Scripts\python.exe .\profile_cli.py reset --yes --include-preferences
+```
+
+**九、修改后的验证**
+
+```powershell
+.\venv\Scripts\python.exe .\profile_cli.py show
+.\venv\Scripts\python.exe .\profile_cli.py events --limit 20
+```
+
+外部修改数据库后，重启当前 `nl2sql.py`，否则长驻进程里的系统提示词仍是旧画像。

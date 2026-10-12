@@ -1,0 +1,23 @@
+本地画像管理命令
+查看画像：
+.\venv\Scripts\python.exe .\profile_cli.py show
+查看最近行为：
+.\venv\Scripts\python.exe .\profile_cli.py events --limit 50
+清空行为画像：
+.\venv\Scripts\python.exe .\profile_cli.py reset --yes
+同时清除明确偏好：
+.\venv\Scripts\python.exe .\profile_cli.py reset --yes --include-preferences
+当前 default 用户已经有明确偏好：
+{
+  "budget_max": 30.0,
+  "spicy_max": 0
+}
+行为特征会在用户继续使用后自动增加。已通过隔离测试验证：
+行为事件记录
+画像特征更新
+数值画像平滑
+推荐读取画像
+推荐曝光保存
+订单自动更新画像
+画像重置
+整个画像闭环位于 [storage.py](D:/my_agent/storage.py)，使用入口位于 [nl2sql.py](D:/my_agent/nl2sql.py) 和 [profile_cli.py](D:/my_agent/profile_cli.py)。

@@ -1,0 +1,175 @@
+在另一台电脑运行这个项目，需要准备 Python、Ollama、模型、依赖和配置文件。当前项目的 `venv` 绝对不能直接复制，因为里面记录了本机 Python 的绝对路径。
+
+**1. 必须安装的软件**
+
+- Python `3.12.x`
+- Ollama
+- 推荐 16 GB 以上内存
+- 使用 CPU 可以运行，但有 8 GB 以上显存会明显更快
+- 不需要安装 MySQL，项目使用 SQLite
+
+安装 Python 后确认：
+
+```powershell
+python --version
+```
+
+**2. 安装 Ollama 和模型**
+
+安装 Ollama，然后执行：
+
+```powershell
+ollama pull qwen2:7b-instruct
+ollama list
+```
+
+必须能看到：
+
+```text
+qwen2:7b-instruct
+```
+
+确认接口正常：
+
+```powershell
+Invoke-RestMethod http://localhost:11434/api/tags
+```
+
+**3. 复制项目文件**
+
+需要复制：
+
+```text
+agent.py
+nl2sql.py
+storage.py
+toolkit.py
+profile_weights.py
+event_cli.py
+profile_cli.py
+data/
+meituan_sim/
+.env
+```
+
+不要复制：
+
+```text
+venv/
+__pycache__/
+*.log
+```
+
+SQLite 数据库 `data/agent.db` 可以复制，这样会保留：
+
+- 商家和菜品
+- 用户偏好
+- 用户订单
+- 会话记录
+- 行为事件
+- 用户画像
+- 美团菜品映射
+
+如果想在新电脑重新初始化，不复制 `agent.db`，然后运行：
+
+```powershell
+python .\data\init_db.py
+```
+
+**4. 新建虚拟环境**
+
+进入项目目录：
+
+```powershell
+cd D:\my_agent
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
+
+当前代码实际需要两个第三方包：
+
+```powershell
+pip install openai==3.16.2 python-dotenv==1.2.3
+```
+
+其余 HTTP 服务、SQLite、签名、线程等功能都使用 Python 标准库，不需要额外安装。
+
+项目目前没有 `requirements.txt`。新电脑也可以手动执行：
+
+```powershell
+pip freeze > requirements.txt
+```
+
+以后直接用：
+
+```powershell
+pip install -r requirements.txt
+```
+
+**5. 准备 `.env`**
+
+在新电脑创建：
+
+```env
+LLM_API_KEY="ollama"
+LLM_BASE_URL="http://localhost:11434/v1"
+MODEL_NAME="qwen2:7b-instruct"
+
+MEITUAN_DEVELOPER_ID="108999"
+MEITUAN_SIGN_KEY="test-sign-key"
+MEITUAN_APP_AUTH_TOKEN="test-app-auth-token"
+MEITUAN_SIM_BASE_URL="http://127.0.0.1:18080"
+```
+
+当前代码同时兼容 `LM_API_KEY` 和正确的 `LLM_API_KEY`，新环境建议使用 `LLM_API_KEY`。
+
+可选配置：
+
+```env
+NL2SQL_USER_ID="default"
+NL2SQL_SESSION_ID="default"
+```
+
+**6. 启动顺序**
+
+先启动 Ollama，然后启动模拟端：
+
+```powershell
+cd D:\my_agent
+.\venv\Scripts\python.exe -m meituan_sim.server
+```
+
+该窗口保持运行，浏览器验证：
+
+```text
+http://127.0.0.1:18080/health
+http://127.0.0.1:18080/stores
+http://127.0.0.1:18080/profile
+```
+
+再打开另一个终端启动 NL2SQL：
+
+```powershell
+cd D:\my_agent
+.\venv\Scripts\python.exe .\nl2sql.py
+```
+
+**7. 启动检查**
+
+依次检查：
+
+```powershell
+ollama list
+.\venv\Scripts\python.exe .\data\init_db.py
+.\venv\Scripts\python.exe .\data\verify_db.py
+.\venv\Scripts\python.exe .\profile_cli.py show
+```
+
+如果 `verify_db.py` 能显示商家、菜品、行为事件和画像表，说明环境基本正确。
+
+**需要注意**
+- 只在 `localhost` 使用时，不需要开放防火墙端口。
+- 如果其他电脑访问模拟端，需将服务改为监听 `0.0.0.0`，并配置防火墙放行 `18080`。
+- 真实美团环境需要替换 `MEITUAN_DEVELOPER_ID`、`MEITUAN_SIGN_KEY` 和 `MEITUAN_APP_AUTH_TOKEN`，当前使用的是模拟凭据。
+- 运行阶段完全使用本地 Ollama，不依赖互联网；安装依赖和下载模型时需要网络。

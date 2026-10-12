@@ -1,0 +1,1 @@
+" 本项目按照美团技术服务合作中心开放的真实菜品同步接口规范（food/batchinitdata、foodCat/update）设计数据格式与同步流程。生产环境对接时，仅需将 BASE_URL 替换为 https://api-open-cater.meituan.com，并补充 OAuth 鉴权（access_token）、图片上传、类目叶子节点校验等步骤。由于真实开放平台需要企业资质（商标证、软著、等保二级）审核，学生项目阶段使用本地模拟服务验证同步逻辑的正确性。"
