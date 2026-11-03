@@ -1,4 +1,4 @@
-"""基于本地大模型和 SQLite 的只读 NL2SQL 查询助手。"""
+"""基于云模型和 SQLite 的只读 NL2SQL 查询助手。"""
 
 from __future__ import annotations
 

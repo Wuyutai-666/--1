@@ -1,0 +1,79 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Meituan Simulator",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "meituan_sim.server",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    },
+    {
+      "name": "NL2SQL Assistant",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/nl2sql.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    },
+    {
+      "name": "NL2SQL Chat Test",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/nl2sql.py",
+      "args": [
+        "--user-id",
+        "vscode_test_user",
+        "--session-id",
+        "vscode_chat_test",
+        "--chars-per-second",
+        "0"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    },
+    {
+      "name": "Simple Agent",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Project: Simulator + NL2SQL",
+      "configurations": [
+        "Meituan Simulator",
+        "NL2SQL Assistant"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "Chat Test: Simulator + NL2SQL",
+      "configurations": [
+        "Meituan Simulator",
+        "NL2SQL Chat Test"
+      ],
+      "stopAll": true
+    }
+  ]
+}
