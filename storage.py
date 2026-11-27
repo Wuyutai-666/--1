@@ -171,6 +171,37 @@ class TakeoutStorage:
             ).fetchall()
         return [self._row_to_message(row) for row in rows]
 
+    def list_chat_messages(
+        self,
+        session_id: str,
+        *,
+        limit: int = 60,
+    ) -> list[dict[str, Any]]:
+        """返回网页聊天可见的 user/assistant 消息（不含工具消息）。"""
+        limit = max(1, min(int(limit), 200))
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT role, content, created_at
+                FROM chat_messages
+                WHERE session_id = ?
+                  AND role IN ('user', 'assistant')
+                  AND content IS NOT NULL
+                  AND TRIM(content) <> ''
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (session_id, limit),
+            ).fetchall()
+        return [
+            {
+                "role": row["role"],
+                "content": row["content"] or "",
+                "created_at": row["created_at"],
+            }
+            for row in reversed(rows)
+        ]
+
     def load_messages_to_summarize(
         self,
         session_id: str,
@@ -802,11 +833,16 @@ class TakeoutStorage:
             rows = conn.execute(
                 """
                 SELECT
-                    id, event_type, dish_id, restaurant_id,
-                    session_id, search_query, context_json, created_at
-                FROM user_events
-                WHERE user_id = ?
-                ORDER BY created_at DESC, id DESC
+                    e.id, e.event_type, e.dish_id, e.restaurant_id,
+                    e.session_id, e.search_query, e.context_json,
+                    e.created_at,
+                    d.name AS dish_name,
+                    r.name AS restaurant_name
+                FROM user_events AS e
+                LEFT JOIN dishes AS d ON d.id = e.dish_id
+                LEFT JOIN restaurants AS r ON r.id = e.restaurant_id
+                WHERE e.user_id = ?
+                ORDER BY e.created_at DESC, e.id DESC
                 LIMIT ?
                 """,
                 (user_id, limit),

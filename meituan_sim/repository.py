@@ -424,6 +424,7 @@ class MeituanDishRepository:
                     r.min_order,
                     r.delivery_fee,
                     r.distance_km,
+                    r.business_hours,
                     r.e_poi_id,
                     COUNT(md.spu_id) AS dish_count
                 FROM restaurants AS r
@@ -433,9 +434,145 @@ class MeituanDishRepository:
                 GROUP BY
                     r.id, r.name, r.category, r.rating,
                     r.min_order, r.delivery_fee, r.distance_km,
-                    r.e_poi_id
+                    r.business_hours, r.e_poi_id
                 ORDER BY r.category, r.rating DESC, r.name
                 """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_restaurant(self, e_poi_id: str) -> dict[str, Any]:
+        """按 ePoiId 返回商家信息（含菜品数量）。"""
+        with self._connect() as conn:
+            row = self._restaurant(conn, e_poi_id)
+            dish_count = conn.execute(
+                "SELECT COUNT(*) AS total FROM meituan_dishes WHERE e_poi_id = ?",
+                (e_poi_id,),
+            ).fetchone()["total"]
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "category": row["category"],
+            "rating": row["rating"],
+            "min_order": row["min_order"],
+            "delivery_fee": row["delivery_fee"],
+            "distance_km": row["distance_km"],
+            "business_hours": row["business_hours"],
+            "e_poi_id": row["e_poi_id"],
+            "dish_count": int(dish_count),
+        }
+
+    def menu_items(self, e_poi_id: str) -> list[dict[str, Any]]:
+        """返回商家菜单，并合并本地 dishes 表的辣度/销量/标签。"""
+        with self._connect() as conn:
+            restaurant = self._restaurant(conn, e_poi_id)
+            rows = conn.execute(
+                """
+                SELECT
+                    md.e_dish_code,
+                    md.dish_name,
+                    md.category_name,
+                    md.description,
+                    md.price,
+                    md.picture,
+                    md.unit,
+                    md.is_sold_out,
+                    md.sequence,
+                    d.id AS local_dish_id,
+                    d.spicy_level,
+                    d.month_sales,
+                    d.tags,
+                    d.is_sold_out AS local_sold_out
+                FROM meituan_dishes AS md
+                LEFT JOIN dishes AS d
+                    ON d.restaurant_id = ?
+                   AND (
+                        d.e_dish_code = md.e_dish_code
+                        OR d.meituan_spu_id = md.spu_id
+                   )
+                WHERE md.e_poi_id = ?
+                ORDER BY (d.id IS NULL), md.sequence, md.category_name, md.dish_name
+                """,
+                (restaurant["id"], e_poi_id),
+            ).fetchall()
+
+        items: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for row in rows:
+            code = row["e_dish_code"]
+            if code in seen:
+                continue
+            seen.add(code)
+            local_sold_out = row["local_sold_out"]
+            items.append(
+                {
+                    "dish_id": row["local_dish_id"] or code,
+                    "e_dish_code": code,
+                    "name": row["dish_name"],
+                    "category_name": row["category_name"] or "",
+                    "description": row["description"] or "",
+                    "price": float(row["price"] or 0),
+                    "picture": row["picture"] or "",
+                    "unit": row["unit"] or "份",
+                    "is_sold_out": int(
+                        local_sold_out
+                        if local_sold_out is not None
+                        else (row["is_sold_out"] or 0)
+                    ),
+                    "sequence": int(row["sequence"] or 0),
+                    "spicy_level": int(row["spicy_level"] or 0),
+                    "month_sales": int(row["month_sales"] or 0),
+                    "tags": row["tags"] or "",
+                    "restaurant_id": restaurant["id"],
+                    "restaurant_name": restaurant["name"],
+                    "e_poi_id": e_poi_id,
+                    "rating": restaurant["rating"],
+                    "category": restaurant["category"],
+                }
+            )
+        return items
+
+    def search_dishes(
+        self,
+        keyword: str,
+        *,
+        limit: int = 24,
+    ) -> list[dict[str, Any]]:
+        """按菜名、标签、分类或商家名搜索菜品。"""
+        term = f"%{keyword.strip()}%"
+        limit = max(1, min(int(limit), 50))
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    d.id AS dish_id,
+                    d.name,
+                    d.price,
+                    d.spicy_level,
+                    d.month_sales,
+                    d.tags,
+                    d.description,
+                    d.unit,
+                    d.is_sold_out,
+                    d.category_name,
+                    r.id AS restaurant_id,
+                    r.name AS restaurant_name,
+                    r.category,
+                    r.e_poi_id,
+                    r.rating,
+                    r.delivery_fee,
+                    r.distance_km,
+                    r.min_order
+                FROM dishes AS d
+                JOIN restaurants AS r ON r.id = d.restaurant_id
+                WHERE d.name LIKE ?
+                   OR d.tags LIKE ?
+                   OR d.category_name LIKE ?
+                   OR r.name LIKE ?
+                   OR r.category LIKE ?
+                ORDER BY d.month_sales DESC, r.rating DESC
+                LIMIT ?
+                """,
+                (term, term, term, term, term, limit),
             ).fetchall()
         return [dict(row) for row in rows]
 
