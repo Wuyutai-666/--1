@@ -133,7 +133,7 @@ NL2SQL_SESSION_ID="default"
 
 **6. 启动顺序**
 
-先启动 Ollama，然后启动模拟端：
+如果只运行网页前端和模拟端，不需要启动 Ollama，直接启动模拟端即可：
 
 ```powershell
 cd D:\my_agent
@@ -143,17 +143,36 @@ cd D:\my_agent
 该窗口保持运行，浏览器验证：
 
 ```text
+http://127.0.0.1:18080/            新版前端首页（推荐 / 商家 / 画像 / 搜索）
 http://127.0.0.1:18080/health
 http://127.0.0.1:18080/stores
 http://127.0.0.1:18080/profile
 ```
 
-再打开另一个终端启动 NL2SQL：
+AI 对话直接嵌在首页左侧目录栏下方，打开首页就能输入，不需要单独页面或浮动
+窗口；移动端会自动放到首页内容区。旧地址 `/chat` 会自动跳回首页。
+
+前端由 Python 服务直接托管，不需要安装 Node.js，也不需要 `npm install`。
+在 Windows 上也可以直接双击项目根目录的 `启动后端.bat`，详见 `本地部署说明.md`。
+
+需要运行 `nl2sql.py` 的 AI 对话时，先启动 Ollama，再打开另一个终端：
 
 ```powershell
 cd D:\my_agent
 .\venv\Scripts\python.exe .\nl2sql.py
 ```
+
+Windows 上也可以直接双击：
+
+```text
+启动全部后端.bat     启动网页 + Ollama
+启动AI对话.bat       启动 Ollama 并进入对话
+拉取AI模型.bat       新机器首次下载 qwen2:7b-instruct（约 4.1 GB）
+查看AI状态.bat       检查 Ollama、模型、网页状态
+```
+
+交付压缩包不包含 4.1 GB 模型文件；新机器第一次使用 AI 对话前，先双击
+`拉取AI模型.bat`。当前这台电脑已经下载完成，不需要重复下载。
 
 **7. 启动检查**
 

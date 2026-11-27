@@ -32,19 +32,44 @@ cd D:\my_agent
 GET http://127.0.0.1:18080/health
 ```
 
-浏览器查看全部商家和菜系竞争：
+## 可视化前端
 
-```text
-http://127.0.0.1:18080/stores
-```
+服务端同时托管新版前端（`meituan_sim/web/`），不需要 npm 或任何构建步骤：
 
-单个商家菜单：
+| 页面 | 地址 |
+| --- | --- |
+| 发现 / 今日推荐 | `http://127.0.0.1:18080/` |
+| 商家目录 | `http://127.0.0.1:18080/stores` |
+| 单店菜单 | `http://127.0.0.1:18080/menu?ePoiId=4211` |
+| 用户画像 | `http://127.0.0.1:18080/profile` |
+| 全局搜索 | `http://127.0.0.1:18080/search?q=面` |
 
-```text
-http://127.0.0.1:18080/menu?ePoiId=4213
-```
+AI 对话固定在首页左侧目录栏下方，是首页的一部分，不是独立页面，也不使用浮动
+弹窗；移动端会自动放到首页内容区。`/api/chat` 调用 `nl2sql.NL2SQLAgent`，需要先
+启动 Ollama 和 `qwen2:7b-instruct`；旧的 `/chat` 地址会重定向到首页。
+前端提供个性化推荐、菜系筛选、店内搜索、购物车、下单、收藏、评分、
+不感兴趣、画像可视化与明确偏好在线编辑。
+所有交互都会写入 `user_events` / `order_history`，并复用 `TakeoutStorage`
+的画像重建逻辑。
 
-当前示例数据包含 33 家商家、99 道菜和 16 个菜系，每个菜系至少有
+前端说明与截图见项目根目录的 [前端说明.md](../前端说明.md)。
+
+## 前端 API
+
+| 方法 | 地址 | 用途 |
+| --- | --- | --- |
+| GET | `/api/restaurants` | 商家列表、菜系聚合、营业状态 |
+| GET | `/api/menu?ePoiId=4211` | 商家信息、菜品、分类、偏好 |
+| GET | `/api/recommendations` | 个性化推荐 |
+| GET | `/api/profile` | 画像摘要、行为、订单 |
+| GET | `/api/search?q=面` | 商家与菜品搜索 |
+| GET | `/api/chat/status` | Ollama / 模型是否就绪 |
+| GET | `/api/chat/history?session_id=web-xxx` | 网页对话历史 |
+| POST | `/api/chat` | 发送消息并调用本地 AI |
+| POST | `/api/action` | 行为上报 / 下单 |
+| POST | `/api/preferences` | 明确偏好写入 / 删除 |
+
+当前示例数据包含 33 家商家、100 道菜和 16 个菜系，每个菜系至少有
 2 家商家。
 
 ## 与 NL2SQL 的关系

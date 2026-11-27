@@ -2,7 +2,6 @@
 
 from .client import MeituanAPIError, MeituanClient
 from .protocol import MeituanConfig, ProtocolError
-from .server import build_server, run_server
 
 __all__ = [
     "MeituanAPIError",
@@ -12,3 +11,12 @@ __all__ = [
     "build_server",
     "run_server",
 ]
+
+
+def __getattr__(name: str):
+    """延迟导入服务端，避免 python -m 启动时重复加载模块。"""
+    if name in {"build_server", "run_server"}:
+        from . import server
+
+        return getattr(server, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
